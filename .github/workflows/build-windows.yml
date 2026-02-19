@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,16 +27,21 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install mingw-w64
-        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+      - name: Setup GCC
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkg-config
 
       - name: Build Windows executable
+        shell: msys2 {0}
         env:
           CGO_ENABLED: 1
-          CC: x86_64-w64-mingw32-gcc
-          CGO_CFLAGS: -Wno-error=missing-braces
         run: |
-          VERSION=${{ github.event.inputs.version || github.ref_name }}
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
           go build -trimpath -tags sqlite_fts5 -ldflags "-s -w -X main.version=$VERSION" -o wacli.exe ./cmd/wacli
 
       - name: Upload artifact
@@ -47,7 +52,8 @@ jobs:
           retention-days: 30
 
       - name: Show build info
+        shell: msys2 {0}
         run: |
           echo "✅ Build complete!"
           echo "📦 Binary: wacli.exe"
-          echo "💾 Size: $(ls -lh wacli.exe | awk '{print $5}')"
+          ls -lh wacli.exe
